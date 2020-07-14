@@ -8,6 +8,6 @@ class TokenFactory {
     private val currentTime = ZonedDateTime.now( ZoneId.of("UTC") )
 
     fun createToken(userid: Long, lifetime: Long): Token {
-        return Token(userid, UUID.randomUUID(), currentTime.plusSeconds(lifetime).toEpochSecond());
-    }
+        return Token(userid, UUID.randomUUID(), currentTime.plusSeconds(lifetime).toEpochSecond())
+	}
 }

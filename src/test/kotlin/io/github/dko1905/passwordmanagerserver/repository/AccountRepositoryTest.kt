@@ -13,10 +13,10 @@ import kotlin.random.Random
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class AccountRepositorySQLiteImplTest(@Autowired private val accountRepository: AccountRepository) {
-    val idsAdded: ArrayList<Long> = ArrayList();
+class AccountRepositoryTest(@Autowired private val accountRepository: AccountRepository) {
+    val idsAdded: ArrayList<Long> = ArrayList()
 
-    @Test
+	@Test
     fun `add account to database, and then get the account by the id`(){
         val account1 = Account(null, "Cool Username " + Random.nextInt(), "cool password hash " + Random.nextInt(), AccountRole.USER)
         val accountId = accountRepository.addAccount(account1)
@@ -28,8 +28,8 @@ class AccountRepositorySQLiteImplTest(@Autowired private val accountRepository: 
         Assertions.assertEquals(account1.HASH, account2.HASH)
         Assertions.assertEquals(account1.ACCOUNTROLE, account2.ACCOUNTROLE)
 
-        idsAdded.add(accountId);
-    }
+        idsAdded.add(accountId)
+	}
 
     @Test
     fun `add 3 accounts to the database, then replace number 2 and then check all accounts`(){
@@ -84,11 +84,11 @@ class AccountRepositorySQLiteImplTest(@Autowired private val accountRepository: 
         Assertions.assertNotNull(account2.ID)
 
         val accounts = accountRepository.getAccounts()
-        var returned: Account? = null;
-        for(account in accounts){
+        var returned: Account? = null
+		for(account in accounts){
             if(account1.ID!! == account.ID!!){
-                returned = account;
-            }
+                returned = account
+			}
         }
         if(returned != null){
             Assertions.assertEquals(account1.ID!!, returned.ID!!)
