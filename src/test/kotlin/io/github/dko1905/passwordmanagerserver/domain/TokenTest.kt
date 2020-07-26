@@ -7,28 +7,28 @@ import java.time.ZoneOffset
 import java.util.*
 
 class TokenTest {
-    @Test
-    fun `Test token without USERID`(){
-        val uuid = UUID.randomUUID()
-        val exp = Instant.now().atZone(ZoneOffset.UTC).toEpochSecond()
+	@Test
+	fun `Test token without USERID`(){
+		val uuid = UUID.randomUUID()
+		val exp = Instant.now().atZone(ZoneOffset.UTC).toEpochSecond()
 
-        val token = Token(null, uuid, exp)
+		val token = Token(null, uuid, exp)
 
-        Assertions.assertEquals(uuid, token.UUID)
-        Assertions.assertEquals(exp, token.EXP)
-        Assertions.assertNull(token.USERID)
-    }
+		Assertions.assertEquals(uuid, token.UUID)
+		Assertions.assertEquals(exp, token.EXP)
+		Assertions.assertNull(token.USERID)
+	}
 
-    @Test
-    fun `Test token with USERID`(){
-        val userid: Long = 101
-        val uuid = UUID.randomUUID()
-        val exp = Instant.now().atZone(ZoneOffset.UTC).toEpochSecond()
+	@Test
+	fun `Test token with USERID`(){
+		val userid: Long = 101
+		val uuid = UUID.randomUUID()
+		val exp = Instant.now().atZone(ZoneOffset.UTC).toEpochSecond()
 
-        val token = Token(userid, uuid, exp)
+		val token = Token(userid, uuid, exp)
 
-        Assertions.assertEquals(uuid, token.UUID)
-        Assertions.assertEquals(exp, token.EXP)
-        Assertions.assertEquals(userid, token.USERID)
-    }
+		Assertions.assertEquals(uuid, token.UUID)
+		Assertions.assertEquals(exp, token.EXP)
+		Assertions.assertEquals(userid, token.USERID)
+	}
 }

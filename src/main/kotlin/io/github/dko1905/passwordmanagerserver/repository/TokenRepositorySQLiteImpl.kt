@@ -7,75 +7,75 @@ import javax.sql.DataSource
 
 class TokenRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : TokenRepository {
 
-    override fun replaceToken(token: Token) {
-        dataSource.connection.use{ connection ->
-            var rowsEffected: Int = 0
-            connection.prepareStatement("UPDATE TOKEN SET UUID=?, EXP=? WHERE ACCOUNTID=?;").use { preparedStatement ->
-                preparedStatement.setString(1, token.UUID.toString())
-                preparedStatement.setLong(2, token.EXP)
-                preparedStatement.setLong(3, token.USERID!!)
+	override fun replaceToken(token: Token) {
+		dataSource.connection.use{ connection ->
+			var rowsEffected: Int = 0
+			connection.prepareStatement("UPDATE TOKEN SET UUID=?, EXP=? WHERE ACCOUNTID=?;").use { preparedStatement ->
+				preparedStatement.setString(1, token.UUID.toString())
+				preparedStatement.setLong(2, token.EXP)
+				preparedStatement.setLong(3, token.USERID!!)
 
-                rowsEffected = preparedStatement.executeUpdate()
-            }
+				rowsEffected = preparedStatement.executeUpdate()
+			}
 
-            if(rowsEffected < 1){
-                connection.prepareStatement("INSERT INTO TOKEN(ACCOUNTID, UUID, EXP) VALUES(?, ?, ?);").use { preparedStatement ->
-                    preparedStatement.setLong(1, token.USERID!!)
-                    preparedStatement.setString(2, token.UUID.toString())
-                    preparedStatement.setLong(3, token.EXP)
+			if(rowsEffected < 1){
+				connection.prepareStatement("INSERT INTO TOKEN(ACCOUNTID, UUID, EXP) VALUES(?, ?, ?);").use { preparedStatement ->
+					preparedStatement.setLong(1, token.USERID!!)
+					preparedStatement.setString(2, token.UUID.toString())
+					preparedStatement.setLong(3, token.EXP)
 
-                    preparedStatement.execute()
-                }
-            }
-        }
-    }
+					preparedStatement.execute()
+				}
+			}
+		}
+	}
 
-    override fun getToken(userID: Long): Token? {
-        var token: Token? = null
+	override fun getToken(userID: Long): Token? {
+		var token: Token? = null
 
-        dataSource.connection.use { connection ->
-            connection.prepareStatement("SELECT ACCOUNTID,UUID,EXP FROM TOKEN WHERE ACCOUNTID=?").use { preparedStatement ->
-                preparedStatement.setLong(1, userID)
+		dataSource.connection.use { connection ->
+			connection.prepareStatement("SELECT ACCOUNTID,UUID,EXP FROM TOKEN WHERE ACCOUNTID=?").use { preparedStatement ->
+				preparedStatement.setLong(1, userID)
 
-                preparedStatement.executeQuery().use { resultSet ->
-                    if(resultSet.next()){
-                        val USERID = resultSet.getLong(1)
-                        val UUID: UUID = UUID.fromString(resultSet.getString(2))
-                        val EXP = resultSet.getLong(3)
+				preparedStatement.executeQuery().use { resultSet ->
+					if(resultSet.next()){
+						val USERID = resultSet.getLong(1)
+						val UUID: UUID = UUID.fromString(resultSet.getString(2))
+						val EXP = resultSet.getLong(3)
 
-                        token = Token(USERID, UUID, EXP)
-                    }
-                    else{
-                        token = null
-                    }
-                }
-            }
-        }
+						token = Token(USERID, UUID, EXP)
+					}
+					else{
+						token = null
+					}
+				}
+			}
+		}
 
-        return token
-    }
+		return token
+	}
 
-    override fun getToken(uuid: UUID): Token? {
-        var token: Token? = null
+	override fun getToken(uuid: UUID): Token? {
+		var token: Token? = null
 
-        dataSource.connection.use { connection ->
-            connection.prepareStatement("SELECT ACCOUNTID,UUID,EXP FROM TOKEN WHERE UUID=?").use { preparedStatement ->
-                preparedStatement.setString(1, uuid.toString())
+		dataSource.connection.use { connection ->
+			connection.prepareStatement("SELECT ACCOUNTID,UUID,EXP FROM TOKEN WHERE UUID=?").use { preparedStatement ->
+				preparedStatement.setString(1, uuid.toString())
 
-                preparedStatement.executeQuery().use { resultSet ->
-                    if(resultSet.next()){
-                        val USERID = resultSet.getLong(1)
-                        val UUID: UUID = UUID.fromString(resultSet.getString(2))
-                        val EXP = resultSet.getLong(3)
+				preparedStatement.executeQuery().use { resultSet ->
+					if(resultSet.next()){
+						val USERID = resultSet.getLong(1)
+						val UUID: UUID = UUID.fromString(resultSet.getString(2))
+						val EXP = resultSet.getLong(3)
 
-                        token = Token(USERID, UUID, EXP)
-                    }
-                    else{
-                        token = null
-                    }
-                }
-            }
-        }
-        return token
-    }
+						token = Token(USERID, UUID, EXP)
+					}
+					else{
+						token = null
+					}
+				}
+			}
+		}
+		return token
+	}
 }

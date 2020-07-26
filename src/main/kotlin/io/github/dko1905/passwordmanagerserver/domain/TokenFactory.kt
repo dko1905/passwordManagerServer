@@ -5,9 +5,9 @@ import java.time.ZonedDateTime
 import java.util.*
 
 class TokenFactory {
-    private val currentTime = ZonedDateTime.now( ZoneId.of("UTC") )
+	private val currentTime = ZonedDateTime.now( ZoneId.of("UTC") )
 
-    fun createToken(userid: Long, lifetime: Long): Token {
-        return Token(userid, UUID.randomUUID(), currentTime.plusSeconds(lifetime).toEpochSecond())
+	fun createToken(userid: Long, lifetime: Long): Token {
+		return Token(userid, UUID.randomUUID(), currentTime.plusSeconds(lifetime).toEpochSecond())
 	}
 }
