@@ -18,15 +18,13 @@ class TokenRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : TokenRe
                 rowsEffected = preparedStatement.executeUpdate()
             }
 
-            // If no rows are effected, INSERT into the table
             if(rowsEffected < 1){
-                //INSERT INTO demo(id, name, hint) values(?, ?, ?);
                 connection.prepareStatement("INSERT INTO TOKEN(ACCOUNTID, UUID, EXP) VALUES(?, ?, ?);").use { preparedStatement ->
                     preparedStatement.setLong(1, token.USERID!!)
                     preparedStatement.setString(2, token.UUID.toString())
                     preparedStatement.setLong(3, token.EXP)
 
-                    preparedStatement.executeUpdate()
+                    preparedStatement.execute()
                 }
             }
         }
@@ -34,16 +32,22 @@ class TokenRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : TokenRe
 
     override fun getToken(userID: Long): Token? {
         var token: Token? = null
+
         dataSource.connection.use { connection ->
             connection.prepareStatement("SELECT ACCOUNTID,UUID,EXP FROM TOKEN WHERE ACCOUNTID=?").use { preparedStatement ->
                 preparedStatement.setLong(1, userID)
 
                 preparedStatement.executeQuery().use { resultSet ->
-                    val USERID = resultSet.getLong(1)
-                    val UUID: UUID = UUID.fromString(resultSet.getString(2))
-                    val EXP = resultSet.getLong(3)
+                    if(resultSet.next()){
+                        val USERID = resultSet.getLong(1)
+                        val UUID: UUID = UUID.fromString(resultSet.getString(2))
+                        val EXP = resultSet.getLong(3)
 
-                    token = Token(USERID, UUID, EXP)
+                        token = Token(USERID, UUID, EXP)
+                    }
+                    else{
+                        token = null
+                    }
                 }
             }
         }
@@ -59,15 +63,19 @@ class TokenRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : TokenRe
                 preparedStatement.setString(1, uuid.toString())
 
                 preparedStatement.executeQuery().use { resultSet ->
-                    val USERID = resultSet.getLong(1)
-                    val UUID: UUID = UUID.fromString(resultSet.getString(2))
-                    val EXP = resultSet.getLong(3)
+                    if(resultSet.next()){
+                        val USERID = resultSet.getLong(1)
+                        val UUID: UUID = UUID.fromString(resultSet.getString(2))
+                        val EXP = resultSet.getLong(3)
 
-                    token = Token(USERID, UUID, EXP)
+                        token = Token(USERID, UUID, EXP)
+                    }
+                    else{
+                        token = null
+                    }
                 }
             }
         }
-
         return token
     }
 }
