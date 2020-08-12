@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import java.util.*
 import javax.sql.DataSource
 
-class TokenRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : TokenRepository {
+class TokenRepositorySQLiteImpl(@Autowired private val dataSource: DataSource) : TokenRepository {
 
 	override fun replaceToken(token: Token) {
 		dataSource.connection.use{ connection ->

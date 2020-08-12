@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import java.sql.SQLException
 import javax.sql.DataSource
 
-class AccountRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : AccountRepository {
+class AccountRepositorySQLiteImpl(@Autowired private val dataSource: DataSource) : AccountRepository {
 
 	override fun addAccount(account: Account): Long {
 		dataSource.connection.use { connection ->
@@ -16,13 +16,10 @@ class AccountRepositorySQLiteImpl(@Autowired val dataSource: DataSource) : Accou
 				preparedStatement.setInt(3, account.ACCOUNTROLE.value)
 				preparedStatement.execute()
 			}
-			connection.prepareStatement("SELECT ID FROM ACCOUNT WHERE USERNAME=? AND HASH=? AND ROLE=?;").use { preparedStatement ->
-				preparedStatement.setString(1, account.USERNAME)
-				preparedStatement.setString(2, account.HASH)
-				preparedStatement.setInt(3, account.ACCOUNTROLE.value)
+			connection.prepareStatement("SELECT last_insert_rowid();").use { preparedStatement ->
 				preparedStatement.executeQuery().use { resultSet ->
 					if(resultSet.next()){
-						return resultSet.getLong("ID")
+						return resultSet.getLong(1)
 					}
 					else{
 						throw SQLException("Not found")

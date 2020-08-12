@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.platform.commons.logging.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.lang.RuntimeException
@@ -14,7 +15,7 @@ import kotlin.random.Random
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountRepositoryTest(@Autowired private val accountRepository: AccountRepository) {
-	val idsAdded: ArrayList<Long> = ArrayList()
+	private val idsAdded: ArrayList<Long> = ArrayList()
 
 	@Test
 	fun `add account to database, and then get the account by the id`(){

@@ -1,13 +1,9 @@
 package io.github.dko1905.passwordmanagerserver.domain.config
 
-import io.github.dko1905.passwordmanagerserver.repository.AccountRepository
-import io.github.dko1905.passwordmanagerserver.repository.AccountRepositorySQLiteImpl
-import io.github.dko1905.passwordmanagerserver.repository.TokenRepository
-import io.github.dko1905.passwordmanagerserver.repository.TokenRepositorySQLiteImpl
+import io.github.dko1905.passwordmanagerserver.repository.*
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.sqlite.SQLiteDataSource
-import java.sql.Connection
 import javax.sql.DataSource
 
 @Configuration
@@ -23,11 +19,16 @@ class ApplicationConfig {
 	}
 
 	@Bean
+	fun credentialRepositoryProvider(dataSource: DataSource): CredentialRepository{
+		return CredentialRepositorySQLiteImpl(dataSource)
+	}
+
+	@Bean
 	fun dataSourceProvider(): DataSource{
 		Class.forName("org.sqlite.JDBC")
 
 		val ds = SQLiteDataSource()
-		ds.url = "jdbc:sqlite:credential.db"
+		ds.url = "jdbc:sqlite:database.db"
 		
 		ds.connection.use{ connection ->
 			connection.createStatement().use {
@@ -44,7 +45,7 @@ class ApplicationConfig {
 					"UUID TEXT NOT NULL," +
 					"EXP INTEGER NOT NULL" +
 					");")
-				it.execute("CREATE TABLE IF NOT EXISTS TOKEN" +
+				it.execute("CREATE TABLE IF NOT EXISTS CREDENTIAL" +
 					"(" +
 					"ACCOUNTID INTEGER PRIMARY KEY," +
 					"WEBSITE TEXT NOT NULL," +

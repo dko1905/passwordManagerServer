@@ -12,7 +12,6 @@ import java.util.*
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TokenRepositoryTest(@Autowired private val accountRepository: TokenRepository) {
 
-
 	@Test
 	fun `replace token 1 and then check if it succeeded with getToken ACCOUNTID)`(){
 		val random = Random()
