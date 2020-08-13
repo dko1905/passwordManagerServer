@@ -1,9 +1,11 @@
 package io.github.dko1905.passwordmanagerserver.domain.config
 
 import io.github.dko1905.passwordmanagerserver.repository.*
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.sqlite.SQLiteDataSource
+import java.util.*
 import javax.sql.DataSource
 
 @Configuration
@@ -21,6 +23,15 @@ class ApplicationConfig {
 	@Bean
 	fun credentialRepositoryProvider(dataSource: DataSource): CredentialRepository{
 		return CredentialRepositorySQLiteImpl(dataSource)
+	}
+
+	@Bean
+	@Qualifier("rootProperties")
+	fun propertiesProvider(): Properties{
+		val properties = Properties()
+		val ps = this::class.java.classLoader.getResourceAsStream("application.properties")
+		properties.load(ps)
+		return properties
 	}
 
 	@Bean

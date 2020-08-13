@@ -70,6 +70,28 @@ class AccountRepositorySQLiteImpl(@Autowired private val dataSource: DataSource)
 		}
 	}
 
+	override fun getAccount(username: String, hash: String): Account? {
+		dataSource.connection.use { connection ->
+			connection.prepareStatement("SELECT ID,USERNAME,HASH,ROLE FROM ACCOUNT WHERE USERNAME=? AND HASH=?").use { preparedStatement ->
+				preparedStatement.setString(1, username)
+				preparedStatement.setString(2, hash)
+
+				preparedStatement.executeQuery().use { resultSet ->
+					return if(resultSet.next()){
+						Account(
+								resultSet.getLong(1),
+								resultSet.getString(2),
+								resultSet.getString(3),
+								AccountRole.fromInt(resultSet.getInt(4))
+						)
+					} else{
+						null // Could not find result
+					}
+				}
+			}
+		}
+	}
+
 	override fun getAccounts(): ArrayList<Account> {
 		val accounts: ArrayList<Account> = ArrayList()
 

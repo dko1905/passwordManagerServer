@@ -33,6 +33,13 @@ interface AccountRepository {
 	fun getAccount(id: Long): Account?
 
 	/**
+	 * Search after the account in the db
+	 * @return Returns the account or null if it's not found
+	 * @exception SQLException Throws exception if there was any problems with the database
+	 */
+	fun getAccount(username: String, hash: String): Account?
+
+	/**
 	 * Returns all the accounts in the database
 	 * @return All the accounts in the database in an ArrayList
 	 * @exception SQLException Throws exception if there was any problems with the database
