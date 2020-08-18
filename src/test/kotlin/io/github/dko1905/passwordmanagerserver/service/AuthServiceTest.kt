@@ -2,57 +2,154 @@ package io.github.dko1905.passwordmanagerserver.service
 
 import io.github.dko1905.passwordmanagerserver.domain.Account
 import io.github.dko1905.passwordmanagerserver.domain.AccountRole
+import io.github.dko1905.passwordmanagerserver.domain.Token
+import io.github.dko1905.passwordmanagerserver.domain.TokenFactory
 import io.github.dko1905.passwordmanagerserver.repository.AccountRepository
 import io.github.dko1905.passwordmanagerserver.repository.TokenRepository
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.env.Environment
-import java.time.Duration
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.test.context.event.annotation.AfterTestMethod
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class AuthServiceTest (
-        @Autowired private val authService: AuthService,
-        @Autowired private val accountRepository: AccountRepository,
-        @Autowired private val tokenRepository: TokenRepository,
-        @Autowired private val env: Environment
+class AuthServiceTest(
+		@Autowired private val authService: AuthService,
+		@Autowired private val accountRepository: AccountRepository,
+		@Autowired private val tokenRepository: TokenRepository,
+		@Autowired private val env: Environment
 ) {
-    private val minlifetime: Long = env.getProperty("token.minlifetime")!!.toLong()
-    private val random = Random()
+	private val lifetime = env.getProperty("token.lifetime")!!.toLong()
+	private val minlifetime = env.getProperty("token.minlifetime")!!.toLong()
+	private val tokenFactory = TokenFactory(lifetime)
+	private val random = Random()
 
-    @Test
-    fun `Create new account using repo, and then check login, then check token with token repo `(){
-        val username = "username-${random.nextInt()}"
-        val password = "password-${random.nextInt()}"
-        val account = Account(null, username, password, AccountRole.USER)
+	private lateinit var adminAccount: Account
+	private lateinit var adminToken: Token
+	private lateinit var userAccount: Account
+	private lateinit var userToken: Token
+	private val toAddAccount = Account(
+			null,
+			"toAdd-${random.nextInt()}",
+			"toAdd-Hash-${random.nextInt()}",
+			AccountRole.USER
+	)
 
-        Assertions.assertNull(authService.login(username, password))
+	fun createGetToken(accountId: Long): Token {
+		val token1 = tokenRepository.getToken(accountId)
+		return if (token1 != null) {
+			token1
+		} else {
+			val token2 = tokenFactory.createToken(accountId)
+			tokenRepository.replaceToken(token2)
+			token2
+		}
+	}
 
-        account.ID = accountRepository.addAccount(account)
+	@BeforeAll
+	fun init(){
+		adminAccount = Account(
+				null,
+				"cool username-${random.nextInt()}",
+				"cool password-${random.nextInt()}",
+				AccountRole.ADMIN
+		)
+		adminAccount.ID = accountRepository.addAccount(adminAccount)
+		adminToken = createGetToken(adminAccount.ID!!)
+		userAccount = Account(
+				null,
+				"user name-${random.nextInt()}",
+				"user pass-${random.nextInt()}",
+				AccountRole.USER
+		)
+		userAccount.ID = accountRepository.addAccount(userAccount)
+		userToken = createGetToken(userAccount.ID!!)
+	}
 
-        val token = authService.login(username, password)
-        Assertions.assertNotNull(token)
-        Assertions.assertEquals(account.ID!!, token!!.USERID)
+	@AfterAll
+	fun deinit(){
+		accountRepository.removeAccount(adminAccount.ID!!)
+		accountRepository.removeAccount(userAccount.ID!!)
+	}
 
-        val token2 = tokenRepository.getToken(account.ID!!)
+	@Test
+	fun `Test creating account`(){
+		var caught = false
+		try{
+			authService.addAccount(userToken, toAddAccount)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
 
-        Assertions.assertEquals(token.USERID!!, token2!!.USERID)
-        Assertions.assertTrue(token.UUID == token2.UUID)
-        Assertions.assertEquals(token.EXP, token2.EXP)
+		authService.addAccount(adminToken, toAddAccount)
 
-        Assertions.assertTimeout(Duration.ofSeconds(minlifetime + 2)) {
-            TimeUnit.SECONDS.sleep(minlifetime + 1)
-            val token3 = authService.login(username, password)
-            Assertions.assertNotNull(token)
-            Assertions.assertEquals(account.ID!!, token.USERID!!)
+		Assertions.assertNotNull(
+				accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)
+		)
 
-            Assertions.assertFalse(token.UUID == token3!!.UUID)
-            Assertions.assertNotEquals(token.EXP, token3.EXP)
-        }
-    }
+		accountRepository.removeAccount(toAddAccount.ID!!)
+	}
+
+	@Test
+	fun `Test getting all accounts`(){
+		var caught = false
+		try{
+			authService.getAccounts(userToken)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
+
+		val accounts = authService.getAccounts(adminToken)
+
+		Assertions.assertNotNull(
+				accounts
+		)
+
+		Assertions.assertTrue(accounts.size > 0)
+	}
+
+	@Test
+	fun `Test login using account`(){
+		authService.addAccount(adminToken, toAddAccount)
+		toAddAccount.ID = accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)!!.ID
+
+		val oGToken = createGetToken(toAddAccount.ID!!)
+		val token = authService.login(toAddAccount.USERNAME, toAddAccount.HASH)
+
+		Assertions.assertNotNull(token)
+		Assertions.assertEquals(oGToken.USERID!!, token!!.USERID)
+		Assertions.assertEquals(oGToken.UUID, token.UUID)
+		Assertions.assertEquals(oGToken.EXP, token.EXP)
+
+		accountRepository.removeAccount(toAddAccount.ID!!)
+	}
+
+	@Test
+	fun `Test deleting account`(){
+		authService.addAccount(adminToken, toAddAccount)
+		toAddAccount.ID = accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)!!.ID
+
+		var caught = false
+		try{
+			authService.deleteAccount(userToken, toAddAccount.ID!!)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
+
+		Assertions.assertNotNull(
+				accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)
+		)
+
+		authService.deleteAccount(adminToken, toAddAccount.ID!!)
+
+		Assertions.assertNull(
+				accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)
+		)
+	}
 }

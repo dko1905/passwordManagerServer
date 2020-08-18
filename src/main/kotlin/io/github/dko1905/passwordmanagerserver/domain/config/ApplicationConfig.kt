@@ -26,15 +26,6 @@ class ApplicationConfig {
 	}
 
 	@Bean
-	@Qualifier("rootProperties")
-	fun propertiesProvider(): Properties{
-		val properties = Properties()
-		val ps = this::class.java.classLoader.getResourceAsStream("application.properties")
-		properties.load(ps)
-		return properties
-	}
-
-	@Bean
 	fun dataSourceProvider(): DataSource{
 		Class.forName("org.sqlite.JDBC")
 
