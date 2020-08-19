@@ -1,6 +1,6 @@
 package io.github.dko1905.passwordmanagerserver.domain
 
-enum class AccountRole(val value: Int) {
+enum class AccountRole(val value: Int){
 	USER(0),
 	READONLY(1),
 	ADMIN(2);

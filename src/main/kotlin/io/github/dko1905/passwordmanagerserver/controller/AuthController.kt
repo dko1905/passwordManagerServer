@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*
 import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.logging.Logger
+import javax.websocket.server.PathParam
+import kotlin.collections.ArrayList
 import kotlin.math.log
 import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
@@ -22,6 +24,22 @@ import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 class AuthController(@Autowired private val authService: AuthService) {
 	private val logger = Logger.getLogger(AuthController::class.java.name)
 	private val mapper = ObjectMapper()
+
+	private fun decodeToken(str: String): Token?{
+		try{
+			val jObj = mapper.readValue<Map<String, String>>(str)
+
+			if(!jObj.containsKey("userid") && !jObj.containsKey("exp") && !jObj.containsKey("uuid")){
+				return null
+			}
+			val userid: Long? = jObj.getValue("userid").toLong()
+			val exp = jObj.getValue("exp").toLong()
+			val uuid = UUID.fromString(jObj.getValue("uuid"))
+			return Token(userid, uuid, exp)
+		} catch (e: Exception){
+			throw e
+		}
+	}
 
 	@GetMapping("/login", produces = ["application/json"])
 	fun login(@RequestHeader("Authorization") authHeader: String?): ResponseEntity<Token> {
@@ -39,6 +57,7 @@ class AuthController(@Autowired private val authService: AuthService) {
 		}
 
 		if(authHeader == null ||  !authHeader.startsWith("Basic")){
+			logger.info("Get /login UNAUTHORIZED")
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
 		} else{
 			try{
@@ -46,61 +65,109 @@ class AuthController(@Autowired private val authService: AuthService) {
 				val username = authInfo!!.first
 				val password = authInfo.second
 
-				logger.info("Username: $username, Password len: ${password.length}")
-
-
 				val token = authService.login(username, password)
 
 				return ResponseEntity.ok(token!!)
 			} catch (ade: AccessDeniedException){
+				logger.info("GET /login UNAUTHORIZED")
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
 			} catch (e: Exception){
+				logger.warning("GET /login INTERNAL_SERVER_ERROR: ${e.message}")
 				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
 			}
 		}
 	}
 
-	@GetMapping("/account", produces = ["application/json"])
-	fun getAccounts(
-			@RequestHeader("X-Auth-Token") headerToken: String?,
-			@CookieValue("SESSIONTOKEN") cookieToken: String?
-	): ResponseEntity<String>{
-		fun decodeToken(str: String): Token?{
-			try{
-				val jObj = mapper.readValue<Map<String, Object>>(str)
-
-				if(!jObj.containsKey("userid") && !jObj.containsKey("exp") && !jObj.containsKey("uuid")){
-					return null
-				}
-				val userid = jObj.getValue("userid") as Long?
-				val exp = jObj.getValue("exp") as Long
-				val uuid = UUID.fromString(jObj.getValue("uuid") as String)
-				return Token(userid, uuid, exp)
-			} catch (e: Exception){
-				throw e
-			}
-		}
-
+	@PostMapping("/account", produces = ["application/json"])
+	fun addAccount(
+			@RequestHeader("X-Auth-Token", required=true) headerToken: String,
+			@RequestBody account: Account
+	): ResponseEntity<String?>{
 		try{
-			logger.info("String is $headerToken")
-
-			var token: Token? = null
-			token = if(headerToken != null && headerToken != ""){
-				decodeToken(headerToken)
-			} else if(cookieToken != null && cookieToken != ""){
-				decodeToken(cookieToken)
-			} else {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null)
+			var token: Token
+			try{
+				if(headerToken != null && headerToken != ""){
+					token = decodeToken(headerToken)!!
+				} else {
+					logger.info("POST /account FORBIDDEN: No token passed")
+					return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+				}
+			} catch (e: Exception){
+				logger.info("POST /account BAD_REQUEST: ${e.message}")
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null)
 			}
 
-			logger.info("Token is $token")
+			authService.addAccount(token, account)
+
+			return ResponseEntity.ok("OK")
 		} catch (ade: AccessDeniedException){
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+			logger.info("POST /account UNAUTHORIZED")
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null)
 		} catch (e: Exception){
-			logger.warning("Error in GET /account: ${e.message}")
+			logger.warning("POST /account INTERNAL_SERVER_ERROR: ${e.message}")
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
 		}
+	}
 
-		return ResponseEntity.status(HttpStatus.OK).body("Hello")
+	@DeleteMapping("/account/{id}", produces = ["application/json"])
+	fun deleteAccount(
+			@RequestHeader("X-Auth-Token", required = true) headerToken: String?,
+			@PathVariable("id", required = true) id: Long
+	): ResponseEntity<String>{
+		try{
+			var token: Token
+			try{
+				if(headerToken != null && headerToken != ""){
+					token = decodeToken(headerToken)!!
+				} else {
+					logger.info("DELETE /account/$id FORBIDDEN: No token passed")
+					return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+				}
+			} catch (e: Exception){
+				logger.info("DELETE /account/$id BAD_REQUEST: ${e.message}")
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null)
+			}
+
+			authService.deleteAccount(token, id)
+
+			return ResponseEntity.ok("OK")
+		} catch (ade: AccessDeniedException){
+			if(ade.message == "NOT_FOUND"){
+				logger.info("DELETE /account/$id NOT_FOUND")
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null)
+			} else{
+				logger.info("DELETE /account/$id UNAUTHORIZED")
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null)
+			}
+		} catch (e: Exception){
+			logger.warning("DELETE /account/$id INTERNAL_SERVER_ERROR: ${e.message}")
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
+		}
+	}
+
+	@GetMapping("/account", produces = ["application/json"])
+	fun getAccounts(@RequestHeader("X-Auth-Token", required = true) headerToken: String?): ResponseEntity<ArrayList<Account>>{
+		try{
+			var token: Token
+			try{
+				if(headerToken != null && headerToken != ""){
+					token = decodeToken(headerToken)!!
+				} else {
+					logger.info("GET /account FORBIDDEN: No token passed")
+					return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+				}
+			} catch (e: Exception){
+				logger.info("GET /account BAD_REQUEST: ${e.message}")
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null)
+			}
+
+			return ResponseEntity.ok(authService.getAccounts(token))
+		} catch (ade: AccessDeniedException){
+			logger.info("GET /account UNAUTHORIZED")
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null)
+		} catch (e: Exception){
+			logger.warning("GET /account INTERNAL_SERVER_ERROR: ${e.message}")
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
+		}
 	}
 }

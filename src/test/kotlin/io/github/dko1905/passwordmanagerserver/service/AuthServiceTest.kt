@@ -38,15 +38,10 @@ class AuthServiceTest(
 			AccountRole.USER
 	)
 
-	fun createGetToken(accountId: Long): Token {
-		val token1 = tokenRepository.getToken(accountId)
-		return if (token1 != null) {
-			token1
-		} else {
-			val token2 = tokenFactory.createToken(accountId)
-			tokenRepository.replaceToken(token2)
-			token2
-		}
+	private fun createGetToken(accountId: Long): Token {
+		val token2 = tokenFactory.createToken(accountId)
+		tokenRepository.replaceToken(token2)
+		return token2
 	}
 
 	@BeforeAll
@@ -85,10 +80,19 @@ class AuthServiceTest(
 		}
 		Assertions.assertTrue(caught)
 
+		caught = false
+		try{
+			authService.addAccount(Token(1, UUID.randomUUID(), 0), toAddAccount)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
+
 		authService.addAccount(adminToken, toAddAccount)
 
+		toAddAccount.ID = accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)!!.ID
 		Assertions.assertNotNull(
-				accountRepository.getAccount(toAddAccount.USERNAME, toAddAccount.HASH)
+				toAddAccount.ID
 		)
 
 		accountRepository.removeAccount(toAddAccount.ID!!)
@@ -99,6 +103,14 @@ class AuthServiceTest(
 		var caught = false
 		try{
 			authService.getAccounts(userToken)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
+
+		caught = false
+		try{
+			authService.getAccounts(Token(1, UUID.randomUUID(), 0))
 		} catch (e: AccessDeniedException){
 			caught = true
 		}
@@ -137,6 +149,14 @@ class AuthServiceTest(
 		var caught = false
 		try{
 			authService.deleteAccount(userToken, toAddAccount.ID!!)
+		} catch (e: AccessDeniedException){
+			caught = true
+		}
+		Assertions.assertTrue(caught)
+
+		caught = false
+		try{
+			authService.deleteAccount(Token(1, UUID.randomUUID(), 0), toAddAccount.ID!!)
 		} catch (e: AccessDeniedException){
 			caught = true
 		}

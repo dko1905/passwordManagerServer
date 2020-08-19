@@ -11,7 +11,6 @@ import org.springframework.core.env.Environment
 import org.springframework.stereotype.Service
 import java.sql.SQLException
 import java.time.Instant
-import java.util.logging.Logger
 import org.springframework.security.access.AccessDeniedException
 
 @Service
@@ -20,10 +19,28 @@ class AuthService(
         @Autowired private val tokenRepository: TokenRepository,
         @Autowired private val env: Environment
 ) {
-    private val logger = Logger.getLogger(AuthService::class.java.name)
-
     private val tokenFactory = TokenFactory(env.getProperty("token.lifetime")!!.toLong())
     private val minlifetime: Long = env.getProperty("token.minlifetime")!!.toLong()
+
+	/**
+	 * Check token if it is valid
+	 * @return false if it is invalid and so on.
+	 */
+	private fun checkToken(token: Token): Boolean{
+		// Check for null
+		if(token.USERID == null){
+			return false
+		}
+
+		// Check if it is expired
+		if(Instant.now().isAfter(Instant.ofEpochSecond(token.EXP))){
+			return false
+		}
+
+		// Check if it exists
+		val token2 = tokenRepository.getToken(token.USERID)
+		return token2 != null && token2.USERID == token.USERID && token2.EXP == token.EXP && token2.UUID == token2.UUID
+	}
 
     /**
      * Deletes account from db, requires ADMIN role
@@ -33,25 +50,29 @@ class AuthService(
      */
     fun deleteAccount(token: Token, otherAccountId: Long) {
         try {
+			if(!checkToken(token)){
+				throw AccessDeniedException("Token invalid")
+			}
             val result = accountRepository.getAccount(token.USERID!!)
             if(result != null){
                 if(result.ACCOUNTROLE == AccountRole.ADMIN){
-                    accountRepository.removeAccount(otherAccountId)
+					if(accountRepository.getAccount(otherAccountId) != null){
+						accountRepository.removeAccount(otherAccountId)
+					} else{
+						throw AccessDeniedException("NOT_FOUND")
+					}
                 } else{
                     throw AccessDeniedException("Account not authorized")
                 }
             } else{
-                throw AccessDeniedException("No account found")
+                throw AccessDeniedException("Account could not be found")
             }
         } catch (sqlException: SQLException) {
-            logger.warning("SQLException thrown in AuthService: ${sqlException.message}")
-            throw SQLException(sqlException)
+            throw sqlException
         } catch (ade: AccessDeniedException) {
-            logger.info("Access denied thrown in AuthService")
             throw ade
         } catch (e: Exception) {
-            logger.warning("Normal Exception thrown in AuthService: ${e.message}")
-            throw Exception(e)
+            throw e
         }
     }
 
@@ -63,6 +84,9 @@ class AuthService(
      */
     fun addAccount(token: Token, account: Account) {
         try {
+			if(!checkToken(token)){
+				throw AccessDeniedException("Token invalid")
+			}
             val result = accountRepository.getAccount(token.USERID!!)
             if(result != null){
                 if(result.ACCOUNTROLE == AccountRole.ADMIN){
@@ -74,14 +98,11 @@ class AuthService(
                 throw AccessDeniedException("No account found")
             }
         } catch (sqlException: SQLException) {
-            logger.warning("SQLException thrown in AuthService: ${sqlException.message}")
-            throw SQLException(sqlException)
+            throw sqlException
         } catch (ade: AccessDeniedException) {
-            logger.info("Access denied thrown in AuthService")
             throw ade
         } catch (e: Exception) {
-            logger.warning("Normal Exception thrown in AuthService: ${e.message}")
-            throw Exception(e)
+            throw e
         }
     }
 
@@ -93,6 +114,9 @@ class AuthService(
 	 */
 	fun getAccounts(token: Token): ArrayList<Account> {
 		try {
+			if(!checkToken(token)){
+				throw AccessDeniedException("Token invalid")
+			}
 			val result = accountRepository.getAccount(token.USERID!!)
 			if(result != null){
 				if(result.ACCOUNTROLE == AccountRole.ADMIN){
@@ -104,14 +128,11 @@ class AuthService(
 				throw AccessDeniedException("No account found")
 			}
 		} catch (sqlException: SQLException) {
-			logger.warning("SQLException thrown in AuthService: ${sqlException.message}")
-			throw SQLException(sqlException)
+			throw sqlException
 		} catch (ade: AccessDeniedException) {
-			logger.info("Access denied thrown in AuthService")
 			throw ade
 		} catch (e: Exception) {
-			logger.warning("Normal Exception thrown in AuthService: ${e.message}")
-			throw Exception(e)
+			throw e
 		}
 	}
 
@@ -130,8 +151,8 @@ class AuthService(
                     tokenRepository.replaceToken(replacement)
                     return replacement
                 } else {
-                    val exp = token.EXP - minlifetime
-                    val now = Instant.now().epochSecond
+                    val exp = Instant.ofEpochSecond(token.EXP).minusSeconds(minlifetime)
+                    val now = Instant.now()
                     if (exp <= now) { // Is too old
                         val replacement = tokenFactory.createToken(result.ID!!)
                         tokenRepository.replaceToken(replacement)
@@ -144,11 +165,9 @@ class AuthService(
                 return null
             }
         } catch (sqlException: SQLException) {
-            logger.warning("SQLException thrown in AuthService: ${sqlException.message}")
-            throw SQLException(sqlException)
+            throw sqlException
         } catch (e: Exception) {
-            logger.warning("Normal Exception thrown in AuthService: ${e.message}")
-            throw Exception(e)
+            throw e
         }
     }
 }
