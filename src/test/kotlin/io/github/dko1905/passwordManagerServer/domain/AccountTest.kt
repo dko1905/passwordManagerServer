@@ -1,15 +1,13 @@
 package io.github.dko1905.passwordManagerServer.domain
 
-import io.github.dko1905.passwordManagerServer.domain.Account
-import io.github.dko1905.passwordManagerServer.domain.AccountRole
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 class AccountTest {
 	@Test
 	fun `Test Account without ID`() {
-		val username = "Test123"
-		val passwordHash = "cool123"
+		val username = "Test1234"
+		val passwordHash = "cool1234"
 		val role = AccountRole.USER
 
 		val account = Account(null, username, passwordHash, role)
