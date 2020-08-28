@@ -68,8 +68,6 @@ class AuthController(@Autowired private val authService: AuthService) {
 				} else{
 					return ResponseEntity.ok(token)
 				}
-
-
 			} catch (ade: AccessDeniedException){
 				logger.info("GET /login UNAUTHORIZED")
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
